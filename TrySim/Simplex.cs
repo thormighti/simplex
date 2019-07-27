@@ -13,7 +13,7 @@ namespace TrySim
         private double[] decisionConstraints;
         private List<int> NonBasicVar = new List<int>();   // storing the non basic variables
         private List<int> BasicVar = new List<int>();   // for storing the basic variable
-        private double v = 0; // to store the optimal value
+        private double optimumValue = 0; // to store the optimal value
         
         public Simplex(double[] objectiveFunc, double[,] A, double[] decisionConstraints)   // constructr
         {
@@ -85,7 +85,7 @@ namespace TrySim
             
             }
 
-            v  += objectiveFunc[enteringPoint] * decisionConstraints[enteringPoint];   //   sores the objective function
+            optimumValue  += objectiveFunc[enteringPoint] * decisionConstraints[enteringPoint];   //   sores the objective function
 
             foreach (var j in NonBasicVar)
             {
@@ -150,7 +150,7 @@ namespace TrySim
             }
 
             // Return the minimization and  the variables
-            return Tuple.Create(v, optimalAmounts);
+            return Tuple.Create(optimumValue, optimalAmounts);
         }
 
         
@@ -210,7 +210,7 @@ namespace TrySim
             }
            
             // Return minimization and variables
-            return Tuple.Create(v, optimalAmounts); // returns the objective and and array of the answers
+            return Tuple.Create(optimumValue, optimalAmounts); // returns the objective and and array of the answers
         }
 
     }
