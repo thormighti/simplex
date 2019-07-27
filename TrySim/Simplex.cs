@@ -10,15 +10,15 @@ namespace TrySim
     {
         private double[] objectiveFunc; //objective fucntion
         private double[,] A;
-        private double[] b;
+        private double[] decisionConstraints;
         private List<int> NonBasicVar = new List<int>();   // storing the non basic variables
         private List<int> BasicVar = new List<int>();   // for storing the basic variable
         private double v = 0; // to store the optimal value
         
-        public Simplex(double[] objectiveFunc, double[,] A, double[] b)   // constructr
+        public Simplex(double[] objectiveFunc, double[,] A, double[] decisionConstraints)   // constructr
         {
             int lengthOfObj = objectiveFunc.Length;
-             int   lengthOfConstraint = b.Length;
+             int   lengthOfConstraint = decisionConstraints.Length;
 
             if (lengthOfObj != A.GetLength(1))
             {
@@ -27,7 +27,7 @@ namespace TrySim
             
             if (lengthOfConstraint != A.GetLength(0))
             {
-                throw new Exception("Number of constraints in A doesn't match number in b.");
+                throw new Exception("Number of constraints in A doesn't match number in Decision Constraints.");
             }
 
             // Extending the Obj coefficients vector with 0 padding
@@ -45,89 +45,89 @@ namespace TrySim
             }
 
             // Extending the constraint right-hand side vector with 0 padding
-            this.b = new double[lengthOfObj + lengthOfConstraint];
-            Array.Copy(b, 0, this.b, lengthOfObj, lengthOfConstraint); // extend from element index at 0 to index[obj length], with b.lenth as the length
+            this.decisionConstraints = new double[lengthOfObj + lengthOfConstraint];
+            Array.Copy(decisionConstraints, 0, this.decisionConstraints, lengthOfObj, lengthOfConstraint); // extend from element index at 0 to index[obj length], with b.lenth as the length
             
             // Populating the non-basic and basic sets
             for (int i = 0; i < lengthOfObj; i++) // chek out why leobj
             {
-                NonBasicVar.Add(i);
+                NonBasicVar.Add(i); /// [0] - ..... of the obj
             }
             
             for (int i = 0; i < lengthOfConstraint; i++) // consraints holds the decision var.
             {
-                BasicVar.Add(lengthOfObj + i);
+                BasicVar.Add(lengthOfObj + i); // [lenghtobj + i]..... decision amounts
             }
         }
-        private void pivot(int e, int l)
+        private void Calculations(int enteringPoint, int leavingPoint)
         {
-            //N.Remove(e);
-            //B.Remove(l);
+            NonBasicVar.Remove(enteringPoint);
+            BasicVar.Remove(leavingPoint); /// mantaining the size of the variables
 
-            b[e] = b[l] / A[l, e]; //  b of the pivot
+            decisionConstraints[enteringPoint] = decisionConstraints[leavingPoint] / A[leavingPoint, enteringPoint]; //  b of the pivot divide by pivot
 
             foreach (var j in NonBasicVar)
             {
-                A[e, j] = A[l, j] / A[l, e]; // new var coff , dividing through by pivot elemet for nonbasic var
+                A[enteringPoint, j] = A[leavingPoint, j] / A[leavingPoint, enteringPoint]; // new var coff , dividing through by pivot elemet for nonbasic var
             }
 
-            A[e, l] = 1 / A[l, e];  //  making the pivot element in unity , thats == 1;
+            A[enteringPoint, leavingPoint] = 1 / A[leavingPoint, enteringPoint];  //  making the pivot element in unity , thats == 1; check this lera
 
-            foreach (var i in BasicVar) // i is rows, including all the zeros
+            foreach (var i in BasicVar) 
             {
-                b[i] -= A[i, e] * b[e]; // storing the new be's I multiplied the element in the pivot colomn by the pivot b
+                decisionConstraints[i] -= A[i, enteringPoint] * decisionConstraints[enteringPoint]; // storing the new be's I multiplied the element in the pivot colomn by the pivot b
 
                 foreach (var j in NonBasicVar) 
                 {                                                 // nested loop here
-                    A[i, j] -=  A[i, e] * A[e, j];   //doing the calculations
+                    A[i, j] -=  A[i, enteringPoint] * A[enteringPoint, j];   //doing the calculations
                 }
 
-                A[i, l] = -1 * A[i, e] * A[e, l];             // storing in the pivot column
+            
             }
 
-            v  += objectiveFunc[e] * b[e];   //   sores the objective function
+            v  += objectiveFunc[enteringPoint] * decisionConstraints[enteringPoint];   //   sores the objective function
 
             foreach (var j in NonBasicVar)
             {
-                objectiveFunc[j] = objectiveFunc[j] - objectiveFunc[e] * A[e, j];
+                objectiveFunc[j] = objectiveFunc[j] - objectiveFunc[enteringPoint] * A[enteringPoint, j];
             }
 
-            objectiveFunc[l] = -1 * objectiveFunc[e] * A[e, l];
+      
 
-            NonBasicVar.Add(l);
-            BasicVar.Add(e);
+            NonBasicVar.Add(leavingPoint);
+            BasicVar.Add(enteringPoint);
         }
         public Tuple<double, double[]> Minimization()
         {
             while (true)
             {
                 // Find highest coefficient for entering var
-                int e = -1; // standardizing the objective function
+                int enteringPoint = -1; // entering location cant be negative, setting initial to -1;
                 double ce = 0;
                 foreach (int j in NonBasicVar) // finding the coffecient of the nonbasic variables in objfunc. j is d item index
                 {
                     if (objectiveFunc[j] < ce)  // finds the most negative
                     {
                         ce = objectiveFunc[j];
-                        e = j;                           // e becomes the entering index
+                        enteringPoint = j;                           // e becomes the entering index
                     }
                 }
 
                 // If no coefficient < 0, there's no more mainimizing to do, and we're almost done
-                if (e == -1) break;   // if e == -1break.no negative index
+                if (enteringPoint == -1) break;   // if e == -1break.no negative index
 
                 // Find lowest check ratio
                 double minRatio = double.MaxValue; // setting to a very large number. Oko help
-                int l = 0;
-                foreach (int i in BasicVar) // and here
+                int leavingPoint = -1;
+                foreach (int i in BasicVar) // at the de decision constraints
                 {
-                    if (A[i, e] > 0)
+                    if (A[i, enteringPoint] > 0)  // element must be positive
                     {
-                        double r = b[i] / A[i, e];
-                        if (r < minRatio)
+                        double ratio = decisionConstraints[i] / A[i, enteringPoint];
+                        if (ratio < minRatio)
                         {
-                            minRatio = r;
-                            l = i;
+                            minRatio = ratio;
+                            leavingPoint = i;
                         }
                     }
                 }
@@ -138,19 +138,19 @@ namespace TrySim
                     Console.WriteLine("the solution is infeasible and unbounded");
                 }
 
-                pivot(e, l);   // setting the pivot
+                Calculations(enteringPoint, leavingPoint);   // setting the pivot
             }
 
             // Extract amounts and slack for optimal solution
-            double[] x = new double[b.Length];
-            int n = b.Length;
+            double[] optimalAmounts = new double[decisionConstraints.Length];
+            int n = decisionConstraints.Length;
             for (var i = 0; i < n; i++)
             {
-                x[i] = BasicVar.Contains(i) ? b[i] : 0; // x checks for the calculated basic variables contained in BasicVAr
+                optimalAmounts[i] = BasicVar.Contains(i) ? decisionConstraints[i] : 0; // optimal checks returns the basic var
             }
 
-            // Return max and variables
-            return Tuple.Create(v, x);
+            // Return the minimization and  the variables
+            return Tuple.Create(v, optimalAmounts);
         }
 
         
@@ -159,32 +159,35 @@ namespace TrySim
             while (true)
             {
                 // Find highest coefficient for entering var
-                int e = -1; // standardizing the obj func
+                int enteringPoint = -1; // standardizing the obj func
                 double ce = 0;
                 foreach (int j in NonBasicVar)
                 {
                     if (objectiveFunc[j] > ce)   // finds the most positive
                     {
                         ce = objectiveFunc[j];
-                        e = j;
+                        enteringPoint = j;
                     }
                 }
 
                 // If no coefficient > 0, there's no more maximizing to do, and we're almost done
-                if (e == -1) break;
+                if (enteringPoint == -1)
+                {
+                    break;
+                }
 
                 // Find lowest check ratio
                 double minRatio = double.MaxValue;
-                int l = 0;
+                int leavingPoint = -1;
                 foreach (int i in BasicVar)
                 {
-                    if (A[i, e] > 0)
+                    if (A[i, enteringPoint] > 0)
                     {
-                        double r = b[i] / A[i, e];
-                        if (r < minRatio)
+                        double ratio = decisionConstraints[i] / A[i, enteringPoint];
+                        if (ratio < minRatio)
                         {
-                            minRatio = r;
-                            l = i;
+                            minRatio = ratio;
+                            leavingPoint = i;
                         }
                     }
                 }
@@ -195,19 +198,19 @@ namespace TrySim
                     Console.WriteLine("the solution is infeasible and unbounded");
                 }
 
-                pivot(e, l);
+                Calculations(enteringPoint, leavingPoint);
             }
 
             // Extract amounts and slack for optimal solution
-            double[] x = new double[b.Length];
-            int n = b.Length;
+            double[] optimalAmounts = new double[decisionConstraints.Length];
+            int n = decisionConstraints.Length;
             for (var i = 0; i < n; i++)
             {
-                x[i] = BasicVar.Contains(i) ? b[i] : 0; // extracting our slack and surplus
+                optimalAmounts[i] = BasicVar.Contains(i) ? decisionConstraints[i] : 0; // extracting our slack and surplus
             }
            
-            // Return max and variables
-            return Tuple.Create(v, x); // returns the objective and and array of the answers
+            // Return minimization and variables
+            return Tuple.Create(v, optimalAmounts); // returns the objective and and array of the answers
         }
 
     }
